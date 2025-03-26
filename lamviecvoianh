@@ -1,107 +1,93 @@
-from PIL import Image, ImageEnhance
+from PIL import Image
 import numpy as np
 import matplotlib.pyplot as plt
-import cv2
 
-anh = Image.open("C:/Users/IT SUPPORTER/Downloads/a2.jpg")
-
+anh = Image.open("C:/Users/Asus/Downloads/a2.jpg")
 plt.imshow(anh)
 plt.title("Ảnh gốc")
 plt.show()
 
-# Chuyển đổi hình ảnh sang ảnh xám
-# cmap để chỉ định bảng màu
-anh_xam = anh.convert('L')
+# Chuyển đổi ảnh sang ảnh xám
+anh_array = np.array(anh, dtype=np.float32)
+R, G, B = anh_array[:, :, 0], anh_array[:, :, 1], anh_array[:, :, 2] # (chiều cao, chiều rộng, số kênh màu)
+anh_xam_array = 0.2989 * R + 0.5870 * G + 0.1140 * B  # Công thức chuyển đổi ảnh xám
+
+# Chuyển mảng numpy thành ảnh
+anh_xam = Image.fromarray(np.uint8(anh_xam_array))
 plt.imshow(anh_xam, cmap='gray')
-plt.show()
-anh_array = np.array(anh_xam)
-
-# Bài 1: Hiển thị histogram cho ảnh
-plt.hist(anh_array.ravel(), bins=256, color='gray', alpha=0.7)
-plt.title('Histogram của ảnh')
-plt.xlabel('Giá trị pixel')
-plt.ylabel('Số lượng pixel')
+plt.title("Ảnh xám")
 plt.show()
 
-# Bài 2: Tăng/giảm độ sáng
-enhancer = ImageEnhance.Brightness(anh)
-anh_sang = enhancer.enhance(4.0)
-
-plt.imshow(anh_sang)
+plt.hist(anh_xam_array.ravel(), bins=256, color='gray', alpha=0.7)
+plt.title("Histogram của ảnh ban đầu")
+plt.xlabel("Giá trị pixel")
+plt.ylabel("Số lượng pixel")
 plt.show()
 
-#Bài 3: Tăng giảm độ tương phản
-#a. Sử dụng công thức min-max, lmin-lmax (chọn min, max dựa vào lược đồ histogram)
+# Tăng độ sáng
+factor = 4.0
+anh_sang_array = np.clip(anh_xam_array * factor, 0, 255)  # Nhân giá trị pixel và giới hạn trong khoảng 0-255
 
-# Tính toán giá trị min và max của ảnh
-I_min = np.min(anh_array)
-I_max = np.max(anh_array)
-l_min = 0
-l_max = 255
-# ADCT
-anh_min_max = ((anh_array - I_min) * (l_max - l_min) / (I_max - I_min)) + l_min
+anh_sang = Image.fromarray(np.uint8(anh_sang_array))
+plt.imshow(anh_sang, cmap='gray')
+plt.title("Ảnh sau khi tăng sáng")
+plt.show()
 
-# Chuyển mảng numpy về lại ảnh
-anh_tuong_phan_a = Image.fromarray(np.uint8(anh_min_max))
+# Điều chỉnh độ tương phản sử dụng phương pháp min-max
+I_min = np.min(anh_xam_array)
+I_max = np.max(anh_xam_array)
+l_min, l_max = 0, 255
+anh_tuong_phan = (anh_xam_array - I_min) * (l_max - l_min) / (I_max - I_min) + l_min
+anh_tuong_phan = np.clip(anh_tuong_phan, 0, 255)
 
-plt.imshow(anh_tuong_phan_a, cmap='gray')
-plt.title("Ảnh sau khi điều chỉnh độ tương phản")
+anh_tuong_phan_img = Image.fromarray(np.uint8(anh_tuong_phan))
+plt.imshow(anh_tuong_phan_img, cmap='gray')
+plt.title("Ảnh sau khi điều chỉnh độ tương phản (Min-Max)")
 plt.axis('off')
 plt.show()
 
+# Điều chỉnh độ tương phản sử dụng phương pháp từng phần
+a, b = 85, 170
+anh_tuong_phan_tung_phan = anh_xam_array.copy()
 
-#b. Sử dụng công thức từng phần: a,b,g (việc lựa chọn phân chia các đoạn dựa vào lược đồ Histogram
-hist, bin_edges = np.histogram(anh_array.flatten(), bins=256, range=(0, 255))
+# Phần a vùng tối(0 -> a)
+phan_a = anh_tuong_phan_tung_phan <= a
+anh_tuong_phan_tung_phan[phan_a] *= 1.2
 
-# Xác định các ngưỡng a, b, g dựa vào lược đồ histogram
-a = 85
-b = 170
+# Phần b vùng trung bình (a -> b)
+phan_b = (anh_tuong_phan_tung_phan > a) & (anh_tuong_phan_tung_phan <= b)
+anh_tuong_phan_tung_phan[phan_b] *= 1.5
 
-# Áp dụng công thức điều chỉnh từng phần cho mỗi đoạn trong histogram
-# 1. Phần a (0 -> a)
-phan_a = anh_array <= a
-anh_array[phan_a] = anh_array[phan_a] * 1.2  # Tăng độ sáng cho phần a
+# Phần g vùng sáng (b -> 255)
+phan_g = anh_tuong_phan_tung_phan > b
+anh_tuong_phan_tung_phan[phan_g] *= 1.3
 
-# 2. Phần b (a -> b)
-phan_b = (anh_array > a) & (anh_array <= b)
-anh_array[phan_b] = anh_array[phan_b] * 1.5  # Tăng độ độ sáng phần b
+anh_tuong_phan_tung_phan = np.clip(anh_tuong_phan_tung_phan, 0, 255)
 
-# 3. Phần g (b -> 255)
-phan_g = anh_array > b
-anh_array[phan_g] = anh_array[phan_g] * 1.3  # Tăng độ sáng cho phần g
-
-# Giới hạn pixel không vượt quá 255
-anh_array = np.clip(anh_array, 0, 255)
-
-# Chuyển mảng numpy về lại ảnh
-anh_tuong_phan_b = Image.fromarray(np.uint8(anh_array))
-
-plt.subplot(1, 2, 1)
-plt.imshow(anh_xam, cmap='gray')
-plt.title("Ảnh gốc")
+anh_tuong_phan_tung_phan_img = Image.fromarray(np.uint8(anh_tuong_phan_tung_phan))
+plt.imshow(anh_tuong_phan_tung_phan_img, cmap='gray')
+plt.title("Ảnh sau khi điều chỉnh độ tương phản (Từng phần)")
 plt.axis('off')
-
-plt.subplot(1, 2, 2)
-plt.imshow(anh_tuong_phan_b, cmap='gray')
-plt.title("Ảnh sau khi điều chỉnh")
-plt.axis('off')
-
 plt.show()
 
-#Bài 4: Cân bằng histogram
-anh_array = np.array(anh_xam)
+# Cân bằng histogram
+hist, bins = np.histogram(anh_xam_array.flatten(), bins=256, range=[0,256])
 
-# Cân bằng histogram cho ảnh
-anh_can_bang = cv2.equalizeHist(anh_array)
+cdf = hist.cumsum()
+cdf_normalized = cdf * 255 / cdf[-1]
 
-anh_can_bang1 = Image.fromarray(anh_can_bang)
+anh_can_bang = np.interp(anh_xam_array.flatten(), bins[:-1], cdf_normalized)
+anh_can_bang = anh_can_bang.reshape(anh_xam_array.shape)  # Chuyển về dạng ma trận ảnh
 
-# Hiển thị ảnh sau khi cân bằng histogram
-plt.imshow(anh_can_bang1, cmap='gray')
+anh_can_bang_img = Image.fromarray(np.uint8(anh_can_bang))
+plt.imshow(anh_can_bang_img, cmap='gray')
 plt.title("Ảnh sau khi cân bằng histogram")
 plt.axis('off')
 plt.show()
 
-
-
+plt.hist(anh_can_bang.ravel(), bins=256, color='gray', alpha=0.7)
+plt.title("Histogram sau khi cân bằng")
+plt.xlabel("Giá trị pixel")
+plt.ylabel("Số lượng pixel")
+plt.show()
 
