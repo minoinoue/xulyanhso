@@ -1,0 +1,55 @@
+from PIL import Image
+import numpy as np
+import matplotlib.pyplot as plt
+
+anh = Image.open("C:/Users/IT SUPPORTER/Downloads/a2.jpg")
+plt.imshow(anh)
+plt.title("Ảnh gốc")
+plt.show()
+
+# Chuyển đổi ảnh sang ảnh xám
+anh_array = np.array(anh, dtype=np.float32)
+R, G, B = anh_array[:, :, 0], anh_array[:, :, 1], anh_array[:, :, 2]
+anh_xam_array = 0.2989 * R + 0.5870 * G + 0.1140 * B
+
+anh_xam = Image.fromarray(np.uint8(anh_xam_array))
+plt.imshow(anh_xam, cmap='gray')
+plt.title("Ảnh xám")
+plt.show()
+
+# Kích thước kernel lọc trung vị
+kich_thuoc_kernel = 3
+dem = kich_thuoc_kernel // 2
+
+# Tạo ảnh đầu ra có cùng kích thước với ảnh gốc
+anh_loc = np.zeros_like(anh_xam)
+
+# Thêm phần biên để tránh lỗi khi truy cập vùng lân cận
+anh_dem = np.pad(anh_xam_array, pad_width=dem, mode='edge')
+
+# Lấy kích thước ảnh gốc
+so_hang, so_cot = anh_xam_array.shape
+
+# Duyệt từng pixel trong ảnh
+for i in range(so_hang):
+    for j in range(so_cot):
+        # Trích xuất vùng lân cận (kernel)
+        vung_lan_can = anh_dem[i:i+kich_thuoc_kernel, j:j+kich_thuoc_kernel]
+        # Tính trung vị
+        trung_vi = np.median(vung_lan_can)
+        # Gán vào ảnh đầu ra
+        anh_loc[i, j] = trung_vi
+
+plt.figure(figsize=(10, 5))
+
+plt.subplot(1, 2, 1)
+plt.imshow(anh_xam, cmap="gray")
+plt.title("Ảnh gốc")
+plt.axis("off")
+
+plt.subplot(1, 2, 2)
+plt.imshow(anh_loc, cmap="gray")
+plt.title("Ảnh sau khi lọc trung vị")
+plt.axis("off")
+
+plt.show()
