@@ -91,3 +91,48 @@ plt.xlabel("Giá trị pixel")
 plt.ylabel("Số lượng pixel")
 plt.show()
 
+from PIL import Image
+import numpy as np
+import matplotlib.pyplot as plt
+
+# Đọc ảnh và chuyển sang ảnh xám
+anh = Image.open("C:/Users/Asus/Downloads/a2.jpg").convert("L")
+anh_xam = np.array(anh, dtype=np.uint8)
+
+# Kích thước kernel lọc trung vị
+kich_thuoc_kernel = 3
+dem = kich_thuoc_kernel // 2
+
+# Tạo ảnh đầu ra có cùng kích thước với ảnh gốc
+anh_loc = np.zeros_like(anh_xam)
+
+# Thêm phần biên để tránh lỗi khi truy cập vùng lân cận
+anh_dem = np.pad(anh_xam, pad_width=dem, mode='edge')
+
+# Lấy kích thước ảnh gốc
+so_hang, so_cot = anh_xam.shape
+
+# Duyệt từng pixel trong ảnh
+for i in range(so_hang):
+    for j in range(so_cot):
+        # Trích xuất vùng lân cận (kernel)
+        vung_lan_can = anh_dem[i:i+kich_thuoc_kernel, j:j+kich_thuoc_kernel]
+        # Tính trung vị
+        trung_vi = np.median(vung_lan_can)
+        # Gán vào ảnh đầu ra
+        anh_loc[i, j] = trung_vi
+
+# Hiển thị ảnh trước và sau khi lọc
+plt.figure(figsize=(10, 5))
+
+plt.subplot(1, 2, 1)
+plt.imshow(anh_xam, cmap="gray")
+plt.title("Ảnh gốc")
+plt.axis("off")
+
+plt.subplot(1, 2, 2)
+plt.imshow(anh_loc, cmap="gray")
+plt.title("Ảnh sau khi lọc trung vị")
+plt.axis("off")
+
+plt.show()
